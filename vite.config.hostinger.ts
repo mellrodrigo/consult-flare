@@ -1,14 +1,12 @@
-// Build estático para hospedagem compartilhada (Hostinger).
-// Uso: bun run build:hostinger  -> gera a pasta dist-hostinger/ para subir em public_html.
+// Build 100% estático (SPA) para hospedagem compartilhada Hostinger.
+// Uso: bunx vite build --config vite.config.hostinger.ts
+// Resultado: dist/client/ -> conteúdo para o public_html.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
     spa: { enabled: true },
-    prerender: { enabled: false },
-  },
-  nitro: {
-    preset: "static",
+    prerender: { enabled: true, crawlLinks: true },
   },
 });
