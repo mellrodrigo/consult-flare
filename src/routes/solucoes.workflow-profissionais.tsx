@@ -15,6 +15,18 @@ export const Route = createFileRoute("/solucoes/workflow-profissionais")({
       { name: "description", content: description },
       { property: "og:title", content: title },
       { property: "og:description", content: description },
+      {
+        property: "og:url",
+        content: "https://rgmtech.com.br/solucoes/workflow-profissionais",
+      },
+      { property: "og:site_name", content: "RGMtech" },
+      { property: "og:locale", content: "pt_BR" },
+    ],
+    links: [
+      {
+        rel: "canonical",
+        href: "https://rgmtech.com.br/solucoes/workflow-profissionais",
+      },
     ],
   }),
   component: WorkflowProfissionais,
