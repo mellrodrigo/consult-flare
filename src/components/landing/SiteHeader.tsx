@@ -1,8 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 
-import logoAsset from "@/assets/rgmtech-logo.png.asset.json";
-
 
 const links = [
   { label: "Serviços", hash: "servicos" },
@@ -25,7 +23,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-2">
           <img
-            src={logoAsset.url}
+            src="/logo-rgmtech.png"
             alt="Logo RGMtech"
             width={40}
             height={40}
