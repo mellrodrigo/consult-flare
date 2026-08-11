@@ -45,7 +45,7 @@ export async function api<T>(
       ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
   return handle<T>(res);
 }
