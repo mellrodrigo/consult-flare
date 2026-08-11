@@ -98,8 +98,8 @@ function WorkflowApp() {
       <main className="flex-1">
         {checking ? (
           <p className="px-6 py-20 text-center text-sm text-muted-foreground">Carregando…</p>
-        ) : !session ? (
-          <WorkflowLogin />
+        ) : !user ? (
+          <WorkflowLogin onAuthenticated={setUser} />
         ) : (
           <div className="mx-auto max-w-[100rem] px-6 py-10">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -110,10 +110,11 @@ function WorkflowApp() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{session.user.email}</span>
-                <Button variant="ghost" onClick={() => void supabase.auth.signOut()}>
+                <span className="text-sm text-muted-foreground">{user.email}</span>
+                <Button variant="ghost" onClick={() => void handleSignOut()}>
                   Sair
                 </Button>
+
                 <Button onClick={() => setShowNew(true)}>+ Novo caso</Button>
               </div>
             </div>
