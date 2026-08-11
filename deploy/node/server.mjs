@@ -2,7 +2,6 @@
 // Uso em produção (Hostinger VPS / Node app):
 //   NODE_ENV=production node server.mjs
 // Variáveis de ambiente: veja .env.example
-import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,45 +9,27 @@ import compression from "compression";
 import express from "express";
 
 import { createApi } from "./api.mjs";
+import { buildConfig, loadEnv, readVersion } from "./config.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// Carrega .env (sem dependência externa) se existir.
-const envFile = join(here, ".env");
-if (existsSync(envFile)) {
-  const { readFileSync } = await import("node:fs");
-  for (const line of readFileSync(envFile, "utf8").split("\n")) {
-    const m = line.match(/^\s*([\w.]+)\s*=\s*(.*)\s*$/);
-    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-}
+loadEnv(here);
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
 const publicDir = resolve(here, process.env.PUBLIC_DIR ?? "./public");
 
-const config = {
-  db: {
-    host: process.env.DB_HOST ?? "localhost",
-    port: Number(process.env.DB_PORT ?? 3306),
-    user: process.env.DB_USER ?? "root",
-    password: process.env.DB_PASSWORD ?? "",
-    database: process.env.DB_NAME ?? "workflow",
-  },
-  uploadsDir: resolve(here, process.env.UPLOADS_DIR ?? "./uploads"),
-  allowSignup: String(process.env.ALLOW_SIGNUP ?? "true") === "true",
-  signupEmailDomain: process.env.SIGNUP_EMAIL_DOMAIN ?? "",
-};
+const config = buildConfig(here, { version: readVersion(join(here, "package.json")) });
 
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(compression());
 
-const { router } = createApi(config);
+// A API vem antes de qualquer arquivo estático: se o `express.static` viesse
+// primeiro, ele responderia HTML para /api/... e o login quebraria.
+const { router, ensureAdminUser } = createApi(config);
 app.use("/api", router);
-
-app.get("/health", (_req, res) => res.json({ ok: true }));
 
 // Assets com hash → cache longo; HTML → sempre revalidado.
 app.use(
@@ -57,8 +38,16 @@ app.use(
 );
 app.use(express.static(publicDir, { extensions: ["html"], maxAge: "1h" }));
 
-// Fallback do roteador do app (client-side routing).
+// Fallback do roteador do app (client-side routing). Nunca captura /api porque
+// o router acima já respondeu (inclusive 404 em JSON).
 app.use((_req, res) => res.sendFile(join(publicDir, "index.html")));
+
+const admin = await ensureAdminUser().catch((err) => ({ created: false, reason: err.message }));
+console.log(
+  admin.created
+    ? `Usuário inicial criado: ${admin.username}`
+    : `Primeiro acesso não criado (${admin.reason}).`,
+);
 
 app.listen(PORT, HOST, () => {
   console.log(`RGMtech rodando em http://${HOST}:${PORT} (arquivos: ${publicDir})`);

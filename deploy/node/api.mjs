@@ -1,5 +1,12 @@
 // API do Workflow de Profissionais — Node.js + MySQL.
-// Mesmo contrato usado pelo front (src/lib/api-client.ts): /api?route=...&id=...
+//
+// Dois formatos de URL, equivalentes:
+//   /api/index.php?route=auth/login   (contrato antigo, usado por src/lib/api-client.ts)
+//   /api/auth/login                   (rota por caminho)
+//
+// Autenticação: cookie de sessão httpOnly (padrão) ou `Authorization: Bearer`.
+// Todas as rotas exigem sessão, exceto `health` e `auth/login` (e `auth/signup`
+// enquanto não existir nenhum usuário — o primeiro acesso).
 import { randomBytes, randomUUID, scrypt as _scrypt, timingSafeEqual } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir, rm, stat, unlink } from "node:fs/promises";
@@ -54,29 +61,104 @@ export function createApi(config) {
     return key.length === expected.length && timingSafeEqual(key, expected);
   }
 
+  const COOKIE = config.cookieName ?? "rgm_session";
+  const SESSION_DAYS = Number(config.sessionDays ?? 30);
+
   function bearer(req) {
     const h = req.headers.authorization ?? "";
     return h.toLowerCase().startsWith("bearer ") ? h.slice(7) : null;
   }
 
+  function cookies(req) {
+    const out = {};
+    for (const part of String(req.headers.cookie ?? "").split(";")) {
+      const i = part.indexOf("=");
+      if (i < 1) continue;
+      const key = part.slice(0, i).trim();
+      const raw = part.slice(i + 1).trim();
+      try {
+        out[key] = decodeURIComponent(raw);
+      } catch {
+        out[key] = raw;
+      }
+    }
+    return out;
+  }
+
+  /** Token da sessão: cookie httpOnly (preferido) ou header Authorization. */
+  function sessionToken(req) {
+    return cookies(req)[COOKIE] || bearer(req);
+  }
+
+  function setSessionCookie(res, token) {
+    res.cookie(COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: Boolean(config.secureCookies),
+      path: "/",
+      maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  function clearSessionCookie(res) {
+    res.clearCookie(COOKIE, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: Boolean(config.secureCookies),
+      path: "/",
+    });
+  }
+
   async function currentUser(req) {
-    const token = bearer(req);
-    if (!token) return null;
-    return one(
-      `SELECT u.id, u.name, u.email FROM sessions s
+    // Memoriza no request: dispatch e os handlers pedem o usuário mais de uma vez.
+    if ("_user" in req) return req._user;
+    const token = sessionToken(req);
+    req._user = token
+      ? await one(
+          `SELECT u.id, u.name, u.email FROM sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND s.expires_at > NOW()`,
-      [token],
-    );
+          [token],
+        )
+      : null;
+    return req._user;
   }
 
   async function createSession(userId) {
     const token = randomBytes(32).toString("hex");
     await q(
-      "INSERT INTO sessions (token, user_id, expires_at) VALUES (?,?, DATE_ADD(NOW(), INTERVAL 30 DAY))",
-      [token, userId],
+      "INSERT INTO sessions (token, user_id, expires_at) VALUES (?,?, DATE_ADD(NOW(), INTERVAL ? DAY))",
+      [token, userId, SESSION_DAYS],
     );
     return token;
+  }
+
+  const userCount = async () => Number((await one("SELECT COUNT(*) AS n FROM users"))?.n ?? 0);
+
+  /**
+   * Primeiro acesso: cria o usuário de ADMIN_USERNAME/ADMIN_PASSWORD/ADMIN_NAME.
+   * Só age quando não existe nenhum usuário — reiniciar o servidor nunca
+   * sobrescreve nem recria a conta.
+   */
+  async function ensureAdminUser() {
+    const username = String(config.admin?.username ?? "")
+      .trim()
+      .toLowerCase();
+    const password = String(config.admin?.password ?? "");
+    if (!username || !password) {
+      return { created: false, reason: "ADMIN_USERNAME/ADMIN_PASSWORD ausentes" };
+    }
+    if ((await userCount()) > 0) {
+      return { created: false, reason: "já existem usuários cadastrados" };
+    }
+    const id = randomUUID();
+    await q("INSERT INTO users (id, name, email, password_hash) VALUES (?,?,?,?)", [
+      id,
+      String(config.admin?.name ?? "").trim() || username,
+      username,
+      await hashPassword(password),
+    ]);
+    return { created: true, username };
   }
 
   const CASE_FIELDS = [
@@ -110,7 +192,18 @@ export function createApi(config) {
   const nullable = (v) => (v === undefined || v === null || v === "" ? null : v);
 
   const routes = {
-    "POST auth/signup": async (req) => {
+    // Pública: serve para checar se o Node está no ar e se falta o primeiro acesso.
+    "GET health": async () => {
+      const version = config.version ?? "0.0.0";
+      try {
+        return { ok: true, version, setup_required: (await userCount()) === 0 };
+      } catch (err) {
+        console.error("[workflow-api] health: banco indisponível —", err.message);
+        return { ok: false, version, setup_required: null };
+      }
+    },
+
+    "POST auth/signup": async (req, res) => {
       if (!config.allowSignup) throw new HttpError("Cadastro desativado. Peça acesso ao administrador.", 403);
       const name = String(req.body?.name ?? "").trim();
       const email = String(req.body?.email ?? "").trim().toLowerCase();
@@ -130,25 +223,32 @@ export function createApi(config) {
         email,
         await hashPassword(password),
       ]);
-      return { token: await createSession(id), user: { id, name: name || email, email } };
+      const token = await createSession(id);
+      setSessionCookie(res, token);
+      return { token, user: { id, name: name || email, email } };
     },
 
-    "POST auth/login": async (req) => {
-      const email = String(req.body?.email ?? "").trim().toLowerCase();
+    "POST auth/login": async (req, res) => {
+      // Aceita `email` (formulário atual) ou `username` (ADMIN_USERNAME).
+      const login = String(req.body?.email ?? req.body?.username ?? "")
+        .trim()
+        .toLowerCase();
       const password = String(req.body?.password ?? "");
-      const user = await one("SELECT id, name, email, password_hash FROM users WHERE email = ?", [email]);
+      const user = await one("SELECT id, name, email, password_hash FROM users WHERE email = ?", [
+        login,
+      ]);
       if (!user || !(await verifyPassword(password, user.password_hash))) {
         throw new HttpError("E-mail ou senha inválidos.", 401);
       }
-      return {
-        token: await createSession(user.id),
-        user: { id: user.id, name: user.name, email: user.email },
-      };
+      const token = await createSession(user.id);
+      setSessionCookie(res, token);
+      return { token, user: { id: user.id, name: user.name, email: user.email } };
     },
 
-    "POST auth/logout": async (req) => {
-      const token = bearer(req);
+    "POST auth/logout": async (req, res) => {
+      const token = sessionToken(req);
       if (token) await q("DELETE FROM sessions WHERE token = ?", [token]);
+      clearSessionCookie(res);
       return { ok: true };
     },
 
@@ -348,9 +448,25 @@ export function createApi(config) {
     createReadStream(path).pipe(res);
   });
 
+  // Rotas liberadas sem sessão. `auth/signup` entra na lista só enquanto não
+  // existir nenhum usuário (primeiro acesso) — ver o gate abaixo.
+  const PUBLIC = new Set(["GET health", "POST auth/login"]);
+
+  /** Aceita `?route=auth/login` (contrato antigo) e `/api/auth/login` (por caminho). */
+  function resolveRoute(req) {
+    const fromQuery = String(req.query.route ?? "").trim();
+    return (fromQuery || req.path).replace(/^\/+|\/+$/g, "");
+  }
+
   const dispatch = handler(async (req, res) => {
-    const route = String(req.query.route ?? "").replace(/^\/+|\/+$/g, "");
+    const route = resolveRoute(req);
     const key = `${req.method} ${route}`;
+
+    if (!PUBLIC.has(key)) {
+      // Cadastro é livre enquanto o sistema está vazio; depois exige sessão.
+      if (key !== "POST auth/signup" || (await userCount()) > 0) await requireUser(req);
+    }
+
     if (key === "POST attachments") return void (await new Promise((ok, err) =>
       upload.single("file")(req, res, (e) => (e ? err(e) : ok(undefined))),
     ).then(() => uploadHandler(req, res, (e) => { throw e; })));
@@ -360,8 +476,9 @@ export function createApi(config) {
     res.json(await fn(req, res));
   });
 
-  router.all("/", dispatch);
-  router.all("/index.php", dispatch); // compatibilidade com a versão PHP
+  // Um único ponto de entrada: cobre `/api`, `/api/index.php` (versão PHP) e
+  // `/api/<rota>`. Precisa vir depois de tudo e antes do tratador de erros.
+  router.use(dispatch);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   router.use((err, _req, res, _next) => {
@@ -370,5 +487,5 @@ export function createApi(config) {
     res.status(status).json({ error: status === 500 ? "Erro interno no servidor." : err.message });
   });
 
-  return { router, pool, uploadsDir };
+  return { router, pool, uploadsDir, ensureAdminUser };
 }

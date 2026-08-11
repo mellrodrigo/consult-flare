@@ -66,6 +66,7 @@ try {
   // Servidor + API + banco
   await cp(join(here, "server.mjs"), join(OUT, "server.mjs"));
   await cp(join(here, "api.mjs"), join(OUT, "api.mjs"));
+  await cp(join(here, "config.mjs"), join(OUT, "config.mjs"));
   await cp(join(here, "schema.sql"), join(OUT, "schema.sql"));
   await cp(join(here, "env.example"), join(OUT, ".env.example"));
   await cp(join(here, "ecosystem.config.cjs"), join(OUT, "ecosystem.config.cjs"));
@@ -78,6 +79,7 @@ try {
     `${JSON.stringify(
       {
         name: "rgmtech-site",
+        version: pkg.version,
         private: true,
         type: "module",
         engines: { node: ">=20" },
