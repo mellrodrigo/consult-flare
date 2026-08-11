@@ -111,10 +111,10 @@ Todas as rotas, exceto login/cadastro, exigem o token `Authorization: Bearer`.
 Se o painel faz o build a partir do repositório, use o entry point da raiz:
 
 - **Arquivo de inicialização:** `hostinger-server.mjs` (ou comando `npm start`)
-- **Build command:** `npm ci && npm run build`
+- **Build command:** `npm ci && npm run build:node`
 - **Node:** 20+
 
-`npm run build` gera `.output/` (preset `node-server`) e o `hostinger-server.mjs` da raiz sobe
+`npm run build:node` gera `.output/` (preset `node-server`) e o `hostinger-server.mjs` da raiz sobe
 o Nitro (`.output/server/index.mjs`) numa porta interna, expondo em `PORT` o site
 com SSR mais a API do Workflow em `/api`.
 
