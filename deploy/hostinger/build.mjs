@@ -40,10 +40,12 @@ async function waitForServer() {
 }
 
 console.log("→ Buildando o app…");
-await run("npx", ["vite", "build", "--config", "vite.config.hostinger.ts"]);
+await run("npx", ["vite", "build", "--config", "vite.config.hostinger.ts"], {
+  env: { ...process.env, LOVABLE_SANDBOX: "", DEV_SERVER__PROJECT_PATH: "" },
+});
 
 console.log("→ Subindo servidor temporário para gerar o HTML…");
-const server = spawn("node", ["dist/server/index.mjs"], {
+const server = spawn("node", [".output/server/index.mjs"], {
   cwd: root,
   stdio: "ignore",
   env: { ...process.env, PORT: String(PORT), HOST: "127.0.0.1" },
@@ -54,7 +56,7 @@ try {
 
   await rm(OUT, { recursive: true, force: true });
   await mkdir(OUT, { recursive: true });
-  await cp(join(root, "dist/client"), OUT, { recursive: true });
+  await cp(join(root, ".output/public"), OUT, { recursive: true });
 
   for (const route of ROUTES) {
     const res = await fetch(`http://127.0.0.1:${PORT}${route}`);
