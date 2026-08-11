@@ -1,33 +1,43 @@
 // A Hostinger instala as dependências com NODE_ENV=production, e nesse modo o
-// `npm install` pula as devDependencies — o vite (que faz o build) fica de fora
-// e `npm run build` quebra com "vite: not found".
+// `npm install` pula as devDependencies — o vite e os plugins que fazem o build
+// ficam de fora e `npm run build` quebra.
 //
-// Este script roda antes do build: se o vite não estiver instalado, reinstala
-// incluindo as devDependencies. Quando já está tudo no lugar (dev local, CI),
-// ele não faz nada.
+// Este script roda antes do build: se qualquer devDependency declarada estiver
+// faltando, reinstala tudo com --include=dev. Quando já está tudo no lugar
+// (dev local, CI), ele não faz nada.
+//
+// Checar só o `vite` não basta: ele costuma entrar como dependência transitiva
+// e passar no teste enquanto o `@lovable.dev/vite-tanstack-config` — importado
+// pelo vite.config.ts — continua ausente.
 import { spawnSync } from "node:child_process";
-import { createRequire } from "node:module";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const devDeps = Object.keys(pkg.devDependencies ?? {});
 
-function hasBuildDeps() {
-  try {
-    require.resolve("vite/package.json");
-    return true;
-  } catch {
-    return false;
-  }
-}
+// Presença no disco em vez de require.resolve: pacotes com `exports` restrito
+// (e os @types/*) não são resolvíveis por especificador, mas têm package.json.
+const missing = () =>
+  devDeps.filter((name) => !existsSync(join(root, "node_modules", name, "package.json")));
 
-if (hasBuildDeps()) {
+const before = missing();
+if (before.length === 0) {
   process.exit(0);
 }
 
-console.log("→ devDependencies ausentes (NODE_ENV=production?). Instalando com --include=dev…");
+console.log(
+  `→ ${before.length} devDependencies ausentes (NODE_ENV=production?): ${before.slice(0, 5).join(", ")}` +
+    `${before.length > 5 ? ", …" : ""}`,
+);
+console.log("→ Reinstalando com --include=dev…");
+
 const result = spawnSync(
   process.platform === "win32" ? "npm.cmd" : "npm",
   ["install", "--include=dev", "--no-audit", "--no-fund"],
-  { stdio: "inherit", env: { ...process.env, NODE_ENV: "development" } },
+  { stdio: "inherit", cwd: root, env: { ...process.env, NODE_ENV: "development" } },
 );
 
 if (result.status !== 0) {
@@ -35,7 +45,8 @@ if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
 
-if (!hasBuildDeps()) {
-  console.error("O vite continua ausente depois do install. Verifique o registro npm do servidor.");
+const after = missing();
+if (after.length > 0) {
+  console.error(`Ainda faltam devDependencies depois do install: ${after.join(", ")}`);
   process.exit(1);
 }
