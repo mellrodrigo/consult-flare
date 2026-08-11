@@ -9,6 +9,5 @@ export default defineConfig({
   },
   nitro: {
     preset: "static",
-    output: { dir: "dist-hostinger" },
   },
 });
