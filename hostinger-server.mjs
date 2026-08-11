@@ -1,6 +1,8 @@
-// Entry point único do site rgmtech.com.br (Hostinger "Node.js app", VPS ou Passenger).
+// Entry point do site rgmtech.com.br para hospedagem COM Node.js
+// (VPS ou plano com "Node.js app"). A hospedagem compartilhada da Hostinger só
+// roda PHP e não usa este arquivo — lá o caminho é `npm run build:hostinger`.
 //
-//   npm install && npm run build && npm start
+//   npm install && npm run build:server && npm start
 //
 // Um processo Node serve tudo na mesma porta:
 //   1. /api/*  → API do Workflow (Express + MySQL), registrada PRIMEIRO;
@@ -32,7 +34,7 @@ const publicDir = join(outputDir, "public");
 
 if (!existsSync(ssrEntry)) {
   console.error(
-    `Build não encontrado em ${ssrEntry}.\nRode 'npm install && npm run build' antes de iniciar.`,
+    `Build não encontrado em ${ssrEntry}.\nRode 'npm install && npm run build:server' antes de iniciar.`,
   );
   process.exit(1);
 }
@@ -73,7 +75,7 @@ const ssrHandler = ssr.middleware ?? ssr.handler ?? ssr.default;
 if (typeof ssrHandler !== "function") {
   console.error(
     `O build em ${ssrEntry} não exporta um handler Node.\n` +
-      `Refaça o build com o preset node-middleware (NITRO_PRESET=node-middleware npm run build).`,
+      `Refaça o build com 'npm run build:server' (preset node-middleware).`,
   );
   process.exit(1);
 }

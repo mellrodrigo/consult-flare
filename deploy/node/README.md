@@ -1,106 +1,119 @@
-# Deploy Node.js — rgmtech.com.br (Hostinger)
+# Deploy Node.js — rgmtech.com.br
 
-O site inteiro (landing + app **Workflow de Profissionais** + API) roda num único
-processo Node.js, na mesma porta e no mesmo domínio, com banco **MySQL**.
+Este pacote roda o site inteiro (landing + app **Workflow de Profissionais** + API)
+num único processo Node.js, na mesma porta e no mesmo domínio, com banco **MySQL**.
 
-Há dois caminhos. O primeiro é o recomendado.
+> [!IMPORTANT]
+> **Requer um plano com Node.js: VPS da Hostinger** (ou hospedagem em nuvem com
+> Node app). A **hospedagem compartilhada da Hostinger só roda PHP** — nela nada
+> deste diretório funciona, nem `hostinger-server.mjs`, nem `npm start`.
+> Para o compartilhado use `deploy/hostinger/` (versão PHP + HTML estático),
+> gerado por `npm run build:hostinger`.
+
+Um 503 do LiteSpeed logo após o deploy é o sintoma clássico de tentar rodar o
+caminho Node em plano compartilhado: não há processo Node para o servidor web
+encaminhar as requisições.
+
+## Qual caminho é o seu
+
+| Hospedagem | Build | O que sobe | SSR? | API |
+| --- | --- | --- | --- | --- |
+| Compartilhada (PHP) | `npm run build:hostinger` | conteúdo de `dist-hostinger/` no `public_html` | não, HTML pré-renderizado | PHP (`deploy/hostinger/api/`) |
+| VPS / Node app | `npm run build:server` | o repositório + `.output/` | sim | Node (`deploy/node/api.mjs`) |
+
+O resto deste documento cobre **só o segundo caso**.
 
 ---
 
-## A. Deploy direto do repositório (painel "Node.js app" da Hostinger)
+## A. VPS (recomendado quando há Node)
 
-O painel clona o repositório, roda o build e inicia o arquivo configurado.
-
-### Configuração no hPanel
-
-| Campo | Valor |
-| --- | --- |
-| Tipo de aplicação | Node.js |
-| Versão do Node | 20 ou superior (testado no 22) |
-| Application root | a pasta do repositório (onde está o `package.json`) |
-| Startup file | `hostinger-server.mjs` |
-| Build command | `npm install && npm run build` |
-| Start command | `npm start` |
-
-> **Não configure `PORT`.** A plataforma injeta a porta e o servidor lê
-> `process.env.PORT`. Fixar o valor faz a aplicação subir na porta errada.
-
-### Variáveis de ambiente
-
-Obrigatórias:
-
+```bash
+git clone <repo> ~/rgmtech && cd ~/rgmtech
+npm install
+npm run build:server
+cp deploy/node/env.example .env    # preencha DB_* e ADMIN_*
+NODE_ENV=production npm start      # teste: http://SEU_IP:3000
 ```
-NODE_ENV=production
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=seu_banco
-DB_USER=seu_usuario
-DB_PASSWORD=sua_senha
-```
-
-Primeiro acesso (só agem enquanto a tabela `users` estiver vazia):
-
-```
-ADMIN_USERNAME=admin@rgmtech.com.br
-ADMIN_PASSWORD=uma-senha-forte
-ADMIN_NAME=Administrador
-```
-
-Opcionais: `UPLOADS_DIR` (padrão `./uploads`), `ALLOW_SIGNUP`,
-`SIGNUP_EMAIL_DOMAIN`, `SESSION_COOKIE`, `SESSION_DAYS`,
-`SESSION_COOKIE_SECURE`. Ver `env.example`.
 
 ### Banco de dados
 
-No hPanel → **Bancos de dados MySQL**: crie o banco e o usuário, depois importe
-`deploy/node/schema.sql` pelo phpMyAdmin (ou `mysql -u USER -p BANCO < schema.sql`).
-
-### Como validar depois do deploy
+Crie o banco e o usuário MySQL, depois importe o schema:
 
 ```bash
-curl -s https://rgmtech.com.br/api/health
-# {"ok":true,"version":"1.0.0","setup_required":false}
+mysql -u USUARIO -p BANCO < deploy/node/schema.sql
 ```
 
-Se vier HTML em vez de JSON, o domínio ainda está servindo o site estático —
-o app Node não está no ar (veja "Solução de problemas").
-
----
-
-## B. Pacote pronto para VPS (`dist-node/`)
-
-Para um VPS onde você mesmo sobe os arquivos:
-
-```bash
-npm run build:node     # gera dist-node/
-scp -r dist-node/* usuario@SEU_IP:/home/usuario/rgmtech/
-ssh usuario@SEU_IP
-cd ~/rgmtech
-cp .env.example .env   # preencha DB_* e ADMIN_*
-npm install --omit=dev
-node server.mjs        # teste: http://SEU_IP:3000
-```
-
-Manter no ar com PM2:
+### Manter no ar com PM2
 
 ```bash
 npm install -g pm2
-pm2 start ecosystem.config.cjs
+pm2 start hostinger-server.mjs --name rgmtech
 pm2 save && pm2 startup
 ```
 
-Nginx na frente (`proxy_pass http://127.0.0.1:3000`), depois
-`certbot --nginx -d rgmtech.com.br -d www.rgmtech.com.br`.
+### Nginx na frente
 
-> Diferença entre A e B: em **A** o SSR do TanStack Start continua ativo
-> (páginas renderizadas no servidor a cada request). Em **B** o `build:node`
-> pré-renderiza as páginas para HTML estático e o Express serve os arquivos.
+```nginx
+server {
+  server_name rgmtech.com.br www.rgmtech.com.br;
+  client_max_body_size 25M;
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+Depois: `certbot --nginx -d rgmtech.com.br -d www.rgmtech.com.br`.
+
+O `X-Forwarded-Proto` importa: é ele que faz o `trust proxy` do Express
+reconhecer o HTTPS e aceitar o cookie de sessão com `Secure`.
 
 ---
 
-## Como o servidor é montado
+## B. Painel "Node.js app" (planos que oferecem Node)
 
-`hostinger-server.mjs` (caminho A) registra, **nesta ordem**:
+| Campo | Valor |
+| --- | --- |
+| Versão do Node | 20 ou superior |
+| Application root | a pasta do repositório |
+| Startup file | `hostinger-server.mjs` |
+| Build command | `npm install && npm run build:server` |
+| Start command | `npm start` |
+
+> **Não configure `PORT`.** A plataforma injeta a porta e o servidor lê
+> `process.env.PORT`.
+
+Variáveis obrigatórias: `NODE_ENV=production`, `DB_HOST`, `DB_PORT`, `DB_NAME`,
+`DB_USER`, `DB_PASSWORD`. Para o primeiro acesso: `ADMIN_USERNAME`,
+`ADMIN_PASSWORD`, `ADMIN_NAME`. Opcionais em `env.example`.
+
+---
+
+## C. Pacote pronto para copiar (`dist-node/`)
+
+`npm run build:node` gera uma pasta autocontida com o site pré-renderizado e o
+servidor Express, para subir por `scp` sem clonar o repositório no servidor:
+
+```bash
+npm run build:node
+scp -r dist-node/* usuario@SEU_IP:/home/usuario/rgmtech/
+ssh usuario@SEU_IP 'cd ~/rgmtech && cp .env.example .env && npm install --omit=dev && node server.mjs'
+```
+
+Diferença para o caminho A: aqui as páginas são pré-renderizadas em HTML e
+servidas como arquivos; não há SSR a cada request.
+
+---
+
+## Como o servidor é montado (caminhos A e B)
+
+`hostinger-server.mjs` registra, **nesta ordem**:
 
 1. `/api/*` → `deploy/node/api.mjs` (Express Router + MySQL);
 2. `.output/public` → assets do build (`express.static`, com `index: false`);
@@ -108,34 +121,30 @@ Nginx na frente (`proxy_pass http://127.0.0.1:3000`), depois
    do Nitro (preset `node-middleware`).
 
 A ordem é o ponto crítico: com o estático ou o SSR na frente, `/api/...` cairia
-na página 404 do frontend e a API responderia HTML — foi exatamente esse o modo
-de falha anterior.
+na página 404 do frontend e a API responderia HTML.
 
-`npm run build` usa o preset `node-middleware` por padrão (antes era
-`cloudflare`, que gera um bundle de Workers que o Node não executa). Para outro
-alvo: `NITRO_PRESET=cloudflare-module npm run build`.
-
-O script `scripts/ensure-build-deps.mjs` roda antes do `vite build`: com
-`NODE_ENV=production` o `npm install` pula as devDependencies e o vite ficaria
-de fora, então ele reinstala com `--include=dev` quando detecta a ausência.
+`scripts/ensure-build-deps.mjs` roda antes do build: com `NODE_ENV=production` o
+`npm install` pula as devDependencies e o vite e seus plugins ficariam de fora.
+Ele confere **todas** as devDependencies declaradas — checar só o `vite` não
+basta, porque ele entra como dependência transitiva e mascara a ausência do
+`@lovable.dev/vite-tanstack-config`, que o `vite.config.ts` importa.
 
 ---
 
 ## Autenticação
 
 - Sessão em cookie **httpOnly**, `SameSite=Lax`, `Secure` quando
-  `NODE_ENV=production`. `app.set("trust proxy", 1)` está ativo para que o
-  HTTPS do proxy da Hostinger seja reconhecido.
-- O header `Authorization: Bearer <token>` continua aceito (o front atual
-  guarda o token no `localStorage`).
+  `NODE_ENV=production`, com `app.set("trust proxy", 1)`.
+- `Authorization: Bearer <token>` continua aceito (o front guarda o token no
+  `localStorage`).
 - **Todas** as rotas exigem sessão, exceto `health` e `auth/login`.
   `auth/signup` é liberada apenas enquanto não existe nenhum usuário.
 
 ### Primeiro acesso
 
-1. Defina `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `ADMIN_NAME` e reinicie.
-   O usuário é criado **somente** se a tabela `users` estiver vazia; reiniciar
-   depois não recria a conta nem troca a senha.
+1. Defina `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `ADMIN_NAME` e reinicie. O
+   usuário é criado **somente** com a tabela `users` vazia; reiniciar depois não
+   recria a conta nem troca a senha.
 2. Ou abra `/workflow` e use **Criar conta** enquanto `setup_required` for
    `true` em `/api/health`.
 3. Com a equipe cadastrada, coloque `ALLOW_SIGNUP=false` e reinicie.
@@ -155,27 +164,26 @@ Rotas: `health`, `auth/login`, `auth/signup`, `auth/logout`, `auth/me`,
 `cases`, `case`, `case/advance`, `interviews`, `interview`, `attachments`,
 `attachment`.
 
-`GET /api/health` responde `{ ok, version, setup_required }` e não exige sessão —
-use para checar se o Node está no ar. Com o banco fora do ar ele responde
-`ok: false` e `setup_required: null` (em vez de derrubar a aplicação).
+`GET /api/health` responde `{ ok, version, setup_required }` sem exigir sessão —
+use para checar se o Node está no ar. Com o banco fora do ar responde
+`ok: false` em vez de derrubar a aplicação.
 
 ---
 
 ## Solução de problemas
 
-**`/api/health` devolve HTML da landing** — o domínio está servindo arquivos
-estáticos, não o app Node. No hPanel, confira se a aplicação Node está
-"Running" e se o domínio aponta para ela (e não para `public_html`).
-Um `server: hcdn` na resposta indica que ainda é o CDN estático.
+**503 do LiteSpeed** — não há processo Node respondendo. Primeiro confirme que o
+plano tem Node.js; no compartilhado, não tem (veja o aviso no topo).
 
-**`vite: not found` no build** — `NODE_ENV=production` cortou as
-devDependencies. O `scripts/ensure-build-deps.mjs` cobre isso; se o painel
-ignorar o script, use `npm install --include=dev && npm run build` como build
-command.
+**`/api/health` devolve HTML** — o domínio está servindo arquivos estáticos, e
+não a aplicação Node. Um `server: hcdn` na resposta confirma que é o CDN.
 
-**`Build não encontrado em .output/server/index.mjs`** — o build não rodou ou
-rodou com outro preset. Rode `npm run build` na pasta da aplicação.
+**`vite: not found` ou `Cannot find package '@lovable.dev/vite-tanstack-config'`**
+— `NODE_ENV=production` cortou as devDependencies. É o que o
+`scripts/ensure-build-deps.mjs` resolve; se o painel ignorar o script, use
+`npm install --include=dev && npm run build:server`.
 
-**Login responde 401 com as credenciais certas** — confira se o banco importado
-tem a tabela `users` e se `ADMIN_USERNAME` foi gravado em minúsculas (o login
-normaliza o identificador para minúsculas).
+**`Build não encontrado em .output/server/index.mjs`** — o build não rodou.
+
+**Login 401 com as credenciais certas** — o identificador é normalizado para
+minúsculas; confira o valor gravado em `users.email`.
