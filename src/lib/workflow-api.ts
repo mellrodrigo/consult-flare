@@ -176,7 +176,9 @@ export async function uploadAttachments(caseId: string, files: FileList | File[]
   for (const file of Array.from(files)) {
     const safe = file.name.replace(/[^\w.\-]+/g, "_");
     const path = `${caseId}/${crypto.randomUUID()}-${safe}`;
-    const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined });
+    const up = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, file.type ? { contentType: file.type } : undefined);
     if (up.error) throw new Error(up.error.message);
     const res = await supabase.from("attachments").insert({
       case_id: caseId,
