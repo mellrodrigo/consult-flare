@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WorkflowRouteImport } from './routes/workflow'
 import { Route as SolucoesWorkflowProfissionaisRouteImport } from './routes/solucoes.workflow-profissionais'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkflowRoute = WorkflowRouteImport.update({
+  id: '/workflow',
+  path: '/workflow',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SolucoesWorkflowProfissionaisRoute =
@@ -26,27 +32,31 @@ const SolucoesWorkflowProfissionaisRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/workflow': typeof WorkflowRoute
   '/solucoes/workflow-profissionais': typeof SolucoesWorkflowProfissionaisRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/workflow': typeof WorkflowRoute
   '/solucoes/workflow-profissionais': typeof SolucoesWorkflowProfissionaisRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/workflow': typeof WorkflowRoute
   '/solucoes/workflow-profissionais': typeof SolucoesWorkflowProfissionaisRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/solucoes/workflow-profissionais'
+  fullPaths: '/' | '/workflow' | '/solucoes/workflow-profissionais'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/solucoes/workflow-profissionais'
-  id: '__root__' | '/' | '/solucoes/workflow-profissionais'
+  to: '/' | '/workflow' | '/solucoes/workflow-profissionais'
+  id: '__root__' | '/' | '/workflow' | '/solucoes/workflow-profissionais'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  WorkflowRoute: typeof WorkflowRoute
   SolucoesWorkflowProfissionaisRoute: typeof SolucoesWorkflowProfissionaisRoute
 }
 
@@ -57,6 +67,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflow': {
+      id: '/workflow'
+      path: '/workflow'
+      fullPath: '/workflow'
+      preLoaderRoute: typeof WorkflowRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/solucoes/workflow-profissionais': {
@@ -71,18 +88,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  WorkflowRoute: WorkflowRoute,
   SolucoesWorkflowProfissionaisRoute: SolucoesWorkflowProfissionaisRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
