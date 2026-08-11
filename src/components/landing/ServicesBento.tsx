@@ -15,7 +15,7 @@ export function ServicesBento() {
       <div className="mt-12 grid gap-4 md:grid-cols-3 md:grid-rows-2">
         <article className="bento-card flex flex-col justify-between p-8 md:col-span-2 md:row-span-2">
           <Workflow className="h-9 w-9 text-gold" strokeWidth={1.5} />
-          <div className="mt-16">
+          <div className="mt-auto pt-10">
             <h3 className="font-display text-2xl font-semibold">
               Sistemas sob medida e integrações
             </h3>
