@@ -82,9 +82,15 @@ function WorkflowProfissionais() {
 
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
+                to="/workflow"
+                className="rounded-full bg-gold px-6 py-3 text-sm font-semibold text-gold-foreground shadow-[var(--shadow-gold)] transition-transform hover:-translate-y-0.5"
+              >
+                Acessar a aplicação
+              </Link>
+              <Link
                 to="/"
                 hash="contato"
-                className="rounded-full bg-gold px-6 py-3 text-sm font-semibold text-gold-foreground shadow-[var(--shadow-gold)] transition-transform hover:-translate-y-0.5"
+                className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-gold/50"
               >
                 Solicitar demonstração
               </Link>
