@@ -31,7 +31,7 @@ export const Route = createFileRoute("/workflow")({
 });
 
 function WorkflowApp() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [track, setTrack] = useState<CaseType>("CONTRATACAO");
   const [cases, setCases] = useState<CaseRow[]>([]);
@@ -40,19 +40,18 @@ function WorkflowApp() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (!s) {
-        setCases([]);
-        setSelected(null);
-      }
-    });
-    supabase.auth
-      .getSession()
-      .then(({ data }) => setSession(data.session))
+    void currentUser()
+      .then(setUser)
       .finally(() => setChecking(false));
-    return () => sub.subscription.unsubscribe();
   }, []);
+
+  async function handleSignOut() {
+    await signOut();
+    setUser(null);
+    setCases([]);
+    setSelected(null);
+  }
+
 
   const loadCases = useCallback(async (t: CaseType) => {
     try {
