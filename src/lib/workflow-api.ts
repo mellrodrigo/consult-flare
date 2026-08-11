@@ -131,11 +131,6 @@ export async function uploadAttachments(caseId: string, files: FileList | File[]
   }
 }
 
-export function attachmentUrl(attachmentId: string): string {
-  const token = getToken();
-  return apiUrl("attachment", { id: attachmentId, ...(token ? { token } : {}) });
-}
-
 export async function downloadAttachment(att: AttachmentRow): Promise<void> {
   const res = await fetch(apiUrl("attachment", { id: att.id }), {
     headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
