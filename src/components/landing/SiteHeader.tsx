@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 
+import logoAsset from "@/assets/rgmtech-logo.png.asset.json";
+
+
 const links = [
   { label: "Serviços", hash: "servicos" },
   { label: "Método", hash: "metodo" },
