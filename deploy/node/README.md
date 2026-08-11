@@ -27,49 +27,77 @@ O resto deste documento cobre **só o segundo caso**.
 
 ## A. VPS (recomendado quando há Node)
 
+### 1. Banco de dados
+
 ```bash
-git clone <repo> ~/rgmtech && cd ~/rgmtech
+sudo mysql -e "CREATE DATABASE workflow CHARACTER SET utf8mb4;
+               CREATE USER 'workflow'@'localhost' IDENTIFIED BY 'TROQUE_ESTA_SENHA';
+               GRANT ALL ON workflow.* TO 'workflow'@'localhost'; FLUSH PRIVILEGES;"
+```
+
+### 2. Código, build e configuração
+
+```bash
+git clone https://github.com/mellrodrigo/consult-flare.git ~/rgmtech && cd ~/rgmtech
 npm install
 npm run build:server
-cp deploy/node/env.example .env    # preencha DB_* e ADMIN_*
-NODE_ENV=production npm start      # teste: http://SEU_IP:3000
+cp deploy/node/env.example .env      # preencha DB_* e ADMIN_*
 ```
 
-### Banco de dados
-
-Crie o banco e o usuário MySQL, depois importe o schema:
+### 3. Importar o schema e testar
 
 ```bash
-mysql -u USUARIO -p BANCO < deploy/node/schema.sql
+mysql -u workflow -p workflow < deploy/node/schema.sql
+NODE_ENV=production PORT=3000 npm start
 ```
 
-### Manter no ar com PM2
+Em outro terminal, antes de mexer no DNS:
 
 ```bash
-npm install -g pm2
-pm2 start hostinger-server.mjs --name rgmtech
-pm2 save && pm2 startup
+curl -s localhost:3000/api/health          # {"ok":true,...,"setup_required":false}
+curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/          # 200
 ```
 
-### Nginx na frente
+`setup_required: false` confirma que o usuário de `ADMIN_USERNAME` foi criado.
 
-```nginx
-server {
-  server_name rgmtech.com.br www.rgmtech.com.br;
-  client_max_body_size 25M;
+### 4. Manter no ar com PM2
 
-  location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
+```bash
+sudo npm install -g pm2
+pm2 start hostinger-server.mjs --name rgmtech --update-env
+pm2 save && pm2 startup      # execute o comando que ele imprimir
 ```
 
-Depois: `certbot --nginx -d rgmtech.com.br -d www.rgmtech.com.br`.
+### 5. Nginx e HTTPS
+
+O arquivo pronto está em `deploy/node/nginx-rgmtech.conf`:
+
+```bash
+sudo cp deploy/node/nginx-rgmtech.conf /etc/nginx/sites-available/rgmtech
+sudo ln -s /etc/nginx/sites-available/rgmtech /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 6. DNS e certificado
+
+Só agora aponte `rgmtech.com.br` (registros A de `@` e `www`) para o IP do VPS.
+Depois que propagar:
+
+```bash
+sudo certbot --nginx -d rgmtech.com.br -d www.rgmtech.com.br
+```
+
+O certbot adiciona o bloco 443 e o redirect. Verifique no fim:
+
+```bash
+curl -s https://rgmtech.com.br/api/health
+```
+
+### Atualizações depois disso
+
+```bash
+cd ~/rgmtech && git pull && npm install && npm run build:server && pm2 restart rgmtech
+```
 
 O `X-Forwarded-Proto` importa: é ele que faz o `trust proxy` do Express
 reconhecer o HTTPS e aceitar o cookie de sessão com `Secure`.
