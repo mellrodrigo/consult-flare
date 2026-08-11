@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
 
-import { supabase } from "@/integrations/supabase/client";
+import { currentUser, signOut, type AuthUser } from "@/lib/api-client";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { WorkflowLogin } from "@/components/workflow/WorkflowLogin";
@@ -12,6 +11,7 @@ import { CaseDetail } from "@/components/workflow/CaseDetail";
 import { Button } from "@/components/ui/button";
 import { WORKFLOWS, type CaseType } from "@/lib/workflow";
 import { getCase, listCases, type CaseRow, type FullCase } from "@/lib/workflow-api";
+
 
 const title = "Workflow de Profissionais — Aplicação | RGMtech";
 const description =
