@@ -12,8 +12,4 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  // Deploy em Node.js (Hostinger): gera .output/server/index.mjs, iniciado por server.js.
-  nitro: {
-    preset: "node-server",
-  },
 });
