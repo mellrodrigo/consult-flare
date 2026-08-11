@@ -62,8 +62,9 @@ function WorkflowApp() {
   }, []);
 
   useEffect(() => {
-    if (session) void loadCases(track);
-  }, [session, track, loadCases]);
+    if (user) void loadCases(track);
+  }, [user, track, loadCases]);
+
 
   async function openCase(id: string) {
     try {
