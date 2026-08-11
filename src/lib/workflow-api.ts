@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { api, apiUpload, apiUrl, getToken } from "@/lib/api-client";
 import { firstStage, nextStage, type CaseType } from "@/lib/workflow";
 
 export interface CaseRow {
@@ -65,81 +65,40 @@ export type CaseFields = Partial<
   >
 >;
 
-const BUCKET = "workflow-files";
-
-function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
-  if (res.error) throw new Error(res.error.message);
-  return res.data as T;
-}
-
 export async function listCases(type: CaseType): Promise<CaseRow[]> {
-  return unwrap(
-    await supabase.from("cases").select("*").eq("type", type).order("updated_at", { ascending: false }),
-  ) as CaseRow[];
+  const out = await api<{ data: CaseRow[] }>("cases", { params: { type } });
+  return out.data ?? [];
 }
 
 export async function getCase(id: string): Promise<FullCase> {
-  const base = unwrap(await supabase.from("cases").select("*").eq("id", id).single()) as CaseRow;
-  const [history, interviews, attachments] = await Promise.all([
-    supabase.from("stage_history").select("*").eq("case_id", id).order("created_at", { ascending: true }),
-    supabase.from("interviews").select("*").eq("case_id", id).order("scheduled_at", { ascending: true }),
-    supabase.from("attachments").select("*").eq("case_id", id).order("created_at", { ascending: false }),
-  ]);
-  return {
-    ...base,
-    history: (unwrap(history) ?? []) as HistoryRow[],
-    interviews: (unwrap(interviews) ?? []) as InterviewRow[],
-    attachments: (unwrap(attachments) ?? []) as AttachmentRow[],
-  };
+  const out = await api<{ data: FullCase }>("case", { params: { id } });
+  return out.data;
 }
 
 export async function createCase(input: CaseFields & { type: CaseType }): Promise<CaseRow> {
-  const { data: userData } = await supabase.auth.getUser();
-  const stage = firstStage(input.type);
-  const created = unwrap(
-    await supabase
-      .from("cases")
-      .insert({
-        ...input,
-        title: input.title || input.cand_name || "Novo caso",
-        current_stage: stage,
-        status: "active",
-        created_by: userData.user?.id ?? null,
-      })
-      .select()
-      .single(),
-  ) as CaseRow;
-
-  await supabase.from("stage_history").insert({
-    case_id: created.id,
-    from_stage: null,
-    to_stage: stage,
-    outcome: "created",
-    note: "Caso criado",
-    author: userData.user?.id ?? null,
+  const out = await api<{ data: CaseRow }>("cases", {
+    method: "POST",
+    body: {
+      ...input,
+      title: input.title || input.cand_name || "Novo caso",
+      current_stage: firstStage(input.type),
+    },
   });
-
-  return created;
+  return out.data;
 }
 
 export async function updateCase(id: string, fields: CaseFields): Promise<void> {
-  const res = await supabase.from("cases").update(fields).eq("id", id);
-  if (res.error) throw new Error(res.error.message);
+  await api("case", { method: "PATCH", params: { id }, body: fields });
 }
 
 export async function deleteCase(id: string): Promise<void> {
-  const { data: files } = await supabase.from("attachments").select("storage_path").eq("case_id", id);
-  const paths = (files ?? []).map((f: { storage_path: string }) => f.storage_path);
-  if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
-  const res = await supabase.from("cases").delete().eq("id", id);
-  if (res.error) throw new Error(res.error.message);
+  await api("case", { method: "DELETE", params: { id } });
 }
 
 export async function advance(
   current: CaseRow,
   opts: { outcome?: "advance" | "approved" | "rejected"; toStage?: string; note?: string },
 ): Promise<void> {
-  const { data: userData } = await supabase.auth.getUser();
   let to: string;
   let status: CaseRow["status"] = "active";
   let outcome = opts.outcome ?? "set";
@@ -156,68 +115,53 @@ export async function advance(
     status = to === "concluido" ? "done" : "active";
   }
 
-  const res = await supabase
-    .from("cases")
-    .update({ current_stage: to, status })
-    .eq("id", current.id);
-  if (res.error) throw new Error(res.error.message);
-
-  await supabase.from("stage_history").insert({
-    case_id: current.id,
-    from_stage: current.current_stage,
-    to_stage: to,
-    outcome,
-    note: opts.note || null,
-    author: userData.user?.id ?? null,
+  await api("case/advance", {
+    method: "POST",
+    params: { id: current.id },
+    body: { to_stage: to, status, outcome, note: opts.note || "" },
   });
 }
 
 export async function uploadAttachments(caseId: string, files: FileList | File[], kind = "other"): Promise<void> {
   for (const file of Array.from(files)) {
-    const safe = file.name.replace(/[^\w.\-]+/g, "_");
-    const path = `${caseId}/${crypto.randomUUID()}-${safe}`;
-    const up = await supabase.storage
-      .from(BUCKET)
-      .upload(path, file, file.type ? { contentType: file.type } : undefined);
-    if (up.error) throw new Error(up.error.message);
-    const res = await supabase.from("attachments").insert({
-      case_id: caseId,
-      kind,
-      original_name: file.name,
-      storage_path: path,
-      mime: file.type || null,
-      size: file.size,
-    });
-    if (res.error) throw new Error(res.error.message);
+    const form = new FormData();
+    form.append("kind", kind);
+    form.append("file", file);
+    await apiUpload("attachments", { id: caseId }, form);
   }
 }
 
-export async function attachmentUrl(path: string): Promise<string> {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 10);
-  if (error) throw new Error(error.message);
-  return data.signedUrl;
+export async function downloadAttachment(att: AttachmentRow): Promise<void> {
+  const res = await fetch(apiUrl("attachment", { id: att.id }), {
+    headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+  });
+  if (!res.ok) throw new Error("Não foi possível baixar o arquivo.");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = att.original_name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function deleteAttachment(att: AttachmentRow): Promise<void> {
-  await supabase.storage.from(BUCKET).remove([att.storage_path]);
-  const res = await supabase.from("attachments").delete().eq("id", att.id);
-  if (res.error) throw new Error(res.error.message);
+  await api("attachment", { method: "DELETE", params: { id: att.id } });
 }
 
 export async function createInterview(
   caseId: string,
   data: { kind: string; scheduled_at: string | null; interviewer: string; location: string; notes: string },
 ): Promise<void> {
-  const res = await supabase.from("interviews").insert({ case_id: caseId, ...data });
-  if (res.error) throw new Error(res.error.message);
+  await api("interviews", { method: "POST", params: { id: caseId }, body: data });
 }
 
 export async function updateInterview(id: string, fields: Partial<InterviewRow>): Promise<void> {
-  const res = await supabase.from("interviews").update(fields).eq("id", id);
-  if (res.error) throw new Error(res.error.message);
+  await api("interview", { method: "PATCH", params: { id }, body: fields });
 }
 
 export async function deleteInterview(id: string): Promise<void> {
-  const res = await supabase.from("interviews").delete().eq("id", id);
-  if (res.error) throw new Error(res.error.message);
+  await api("interview", { method: "DELETE", params: { id } });
 }

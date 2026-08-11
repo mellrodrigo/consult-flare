@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
 
-import { supabase } from "@/integrations/supabase/client";
+import { currentUser, signOut, type AuthUser } from "@/lib/api-client";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { WorkflowLogin } from "@/components/workflow/WorkflowLogin";
@@ -12,6 +11,7 @@ import { CaseDetail } from "@/components/workflow/CaseDetail";
 import { Button } from "@/components/ui/button";
 import { WORKFLOWS, type CaseType } from "@/lib/workflow";
 import { getCase, listCases, type CaseRow, type FullCase } from "@/lib/workflow-api";
+
 
 const title = "Workflow de Profissionais — Aplicação | RGMtech";
 const description =
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/workflow")({
 });
 
 function WorkflowApp() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [track, setTrack] = useState<CaseType>("CONTRATACAO");
   const [cases, setCases] = useState<CaseRow[]>([]);
@@ -40,19 +40,18 @@ function WorkflowApp() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (!s) {
-        setCases([]);
-        setSelected(null);
-      }
-    });
-    supabase.auth
-      .getSession()
-      .then(({ data }) => setSession(data.session))
+    void currentUser()
+      .then(setUser)
       .finally(() => setChecking(false));
-    return () => sub.subscription.unsubscribe();
   }, []);
+
+  async function handleSignOut() {
+    await signOut();
+    setUser(null);
+    setCases([]);
+    setSelected(null);
+  }
+
 
   const loadCases = useCallback(async (t: CaseType) => {
     try {
@@ -63,8 +62,9 @@ function WorkflowApp() {
   }, []);
 
   useEffect(() => {
-    if (session) void loadCases(track);
-  }, [session, track, loadCases]);
+    if (user) void loadCases(track);
+  }, [user, track, loadCases]);
+
 
   async function openCase(id: string) {
     try {
@@ -98,8 +98,8 @@ function WorkflowApp() {
       <main className="flex-1">
         {checking ? (
           <p className="px-6 py-20 text-center text-sm text-muted-foreground">Carregando…</p>
-        ) : !session ? (
-          <WorkflowLogin />
+        ) : !user ? (
+          <WorkflowLogin onAuthenticated={setUser} />
         ) : (
           <div className="mx-auto max-w-[100rem] px-6 py-10">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -110,10 +110,11 @@ function WorkflowApp() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{session.user.email}</span>
-                <Button variant="ghost" onClick={() => void supabase.auth.signOut()}>
+                <span className="text-sm text-muted-foreground">{user.email}</span>
+                <Button variant="ghost" onClick={() => void handleSignOut()}>
                   Sair
                 </Button>
+
                 <Button onClick={() => setShowNew(true)}>+ Novo caso</Button>
               </div>
             </div>

@@ -1,53 +1,29 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { signIn, signUp, type AuthUser } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function WorkflowLogin() {
+export function WorkflowLogin({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
-    setInfo("");
     try {
-      if (mode === "login") {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-        if (err) throw err;
-      } else {
-        const { error: err } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { name },
-            emailRedirectTo: `${window.location.origin}/workflow`,
-          },
-        });
-        if (err) throw err;
-        setInfo("Conta criada. Se a confirmação por email estiver ativa, verifique sua caixa de entrada.");
-      }
+      const user = mode === "login" ? await signIn(email, password) : await signUp(name, email, password);
+      onAuthenticated(user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha na autenticação");
     } finally {
       setBusy(false);
     }
-  }
-
-  async function google() {
-    setError("");
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) setError("Não foi possível entrar com Google.");
   }
 
   return (
@@ -85,21 +61,16 @@ export function WorkflowLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
-          {info && <p className="text-sm text-gold">{info}</p>}
 
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
           </Button>
         </form>
-
-        <Button type="button" variant="outline" className="mt-3 w-full" onClick={google}>
-          Entrar com Google
-        </Button>
 
         <button
           type="button"
@@ -107,7 +78,6 @@ export function WorkflowLogin() {
           onClick={() => {
             setMode(mode === "login" ? "signup" : "login");
             setError("");
-            setInfo("");
           }}
         >
           {mode === "login" ? "Não tem acesso? Criar conta" : "Já tenho conta — entrar"}

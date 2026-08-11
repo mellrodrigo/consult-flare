@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getStageLabel, getStages } from "@/lib/workflow";
 import {
   advance,
-  attachmentUrl,
+  downloadAttachment,
   createInterview,
   deleteAttachment,
   deleteCase,
@@ -365,8 +365,7 @@ function FilesTab({
   const [files, setFiles] = useState<FileList | null>(null);
 
   async function download(att: AttachmentRow) {
-    const url = await attachmentUrl(att.storage_path);
-    window.open(url, "_blank", "noopener");
+    await downloadAttachment(att);
   }
 
   return (
