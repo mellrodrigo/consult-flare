@@ -14,7 +14,207 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attachments: {
+        Row: {
+          case_id: string
+          created_at: string
+          id: string
+          kind: string
+          mime: string | null
+          original_name: string
+          size: number | null
+          storage_path: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          id?: string
+          kind?: string
+          mime?: string | null
+          original_name: string
+          size?: number | null
+          storage_path: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          mime?: string | null
+          original_name?: string
+          size?: number | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          area: string | null
+          cand_email: string | null
+          cand_linkedin: string | null
+          cand_name: string | null
+          cand_phone: string | null
+          created_at: string
+          created_by: string | null
+          current_stage: string
+          id: string
+          manager: string | null
+          notes: string | null
+          role: string | null
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          area?: string | null
+          cand_email?: string | null
+          cand_linkedin?: string | null
+          cand_name?: string | null
+          cand_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_stage: string
+          id?: string
+          manager?: string | null
+          notes?: string | null
+          role?: string | null
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          area?: string | null
+          cand_email?: string | null
+          cand_linkedin?: string | null
+          cand_name?: string | null
+          cand_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_stage?: string
+          id?: string
+          manager?: string | null
+          notes?: string | null
+          role?: string | null
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      interviews: {
+        Row: {
+          case_id: string
+          created_at: string
+          id: string
+          interviewer: string | null
+          kind: string | null
+          location: string | null
+          notes: string | null
+          result: string
+          scheduled_at: string | null
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          id?: string
+          interviewer?: string | null
+          kind?: string | null
+          location?: string | null
+          notes?: string | null
+          result?: string
+          scheduled_at?: string | null
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          id?: string
+          interviewer?: string | null
+          kind?: string | null
+          location?: string | null
+          notes?: string | null
+          result?: string
+          scheduled_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
+      stage_history: {
+        Row: {
+          author: string | null
+          case_id: string
+          created_at: string
+          from_stage: string | null
+          id: string
+          note: string | null
+          outcome: string | null
+          to_stage: string
+        }
+        Insert: {
+          author?: string | null
+          case_id: string
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          outcome?: string | null
+          to_stage: string
+        }
+        Update: {
+          author?: string | null
+          case_id?: string
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          outcome?: string | null
+          to_stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stage_history_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
