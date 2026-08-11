@@ -103,3 +103,21 @@ Tudo em `/api?route=...` (mesmo contrato do front em `src/lib/api-client.ts`):
 `auth/signup`, `auth/login`, `auth/logout`, `auth/me`, `cases`, `case`,
 `case/advance`, `interviews`, `interview`, `attachments`, `attachment`.
 Todas as rotas, exceto login/cadastro, exigem o token `Authorization: Bearer`.
+
+---
+
+## Deploy direto do repositório (painel "Node.js app" da Hostinger)
+
+Se o painel faz o build a partir do repositório, use o entry point da raiz:
+
+- **Arquivo de inicialização:** `server.js` (ou comando `npm start`)
+- **Build command:** `npm ci && npm run build`
+- **Node:** 20+
+
+`npm run build` gera `.output/` (preset `node-server`) e o `server.js` da raiz sobe
+o Nitro (`.output/server/index.mjs`) numa porta interna, expondo em `PORT` o site
+com SSR mais a API do Workflow em `/api`.
+
+Variáveis de ambiente (painel ou `.env` na raiz): `PORT`, `DB_HOST`, `DB_PORT`,
+`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `UPLOADS_DIR`, `ALLOW_SIGNUP`.
+Opcional: `SSR_PORT` (padrão `PORT + 1`).
