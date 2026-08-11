@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "build:node": "node deploy/node/build.mjs",
-    "start": "node server.js"
+    "start": "node hostinger-server.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
