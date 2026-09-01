@@ -15,6 +15,11 @@ const solutions = [
     description: "Alocação, horas e aprovações para consultorias",
     to: "/solucoes/workflow-profissionais" as const,
   },
+  {
+    label: "Raio X da Fatura",
+    description: "Diagnóstico e economia nas faturas da empresa",
+    to: "/solucoes/raiox-da-fatura" as const,
+  },
 ];
 
 export function SiteHeader() {
