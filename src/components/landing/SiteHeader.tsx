@@ -9,11 +9,15 @@ const links = [
   { label: "Contato", hash: "contato" },
 ];
 
-const solutions = [
+type Solution =
+  | { label: string; description: string; to: "/solucoes/workflow-profissionais"; href?: never }
+  | { label: string; description: string; href: string; to?: never };
+
+const solutions: Solution[] = [
   {
     label: "Workflow de Profissionais",
     description: "Alocação, horas e aprovações para consultorias",
-    to: "/solucoes/workflow-profissionais" as const,
+    to: "/solucoes/workflow-profissionais",
   },
   {
     label: "Raio X da Fatura",
