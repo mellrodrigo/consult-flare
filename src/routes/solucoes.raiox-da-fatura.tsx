@@ -107,13 +107,12 @@ function RaioxDaFatura() {
               >
                 Solicitar demonstração
               </Link>
-              <Link
-                to="/"
-                hash="servicos"
-                className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-gold/50"
+              <a
+                href="/raio-x-fatura.html"
+                className="rounded-full border border-gold/40 px-6 py-3 text-sm font-semibold text-gold transition-colors hover:bg-gold hover:text-gold-foreground"
               >
-                Ver outros serviços
-              </Link>
+                Abrir demonstração ao vivo
+              </a>
             </div>
           </div>
         </section>

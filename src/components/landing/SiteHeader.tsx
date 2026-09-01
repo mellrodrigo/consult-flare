@@ -9,16 +9,20 @@ const links = [
   { label: "Contato", hash: "contato" },
 ];
 
-const solutions = [
+type Solution =
+  | { label: string; description: string; to: "/solucoes/workflow-profissionais"; href?: never }
+  | { label: string; description: string; href: string; to?: never };
+
+const solutions: Solution[] = [
   {
     label: "Workflow de Profissionais",
     description: "Alocação, horas e aprovações para consultorias",
-    to: "/solucoes/workflow-profissionais" as const,
+    to: "/solucoes/workflow-profissionais",
   },
   {
     label: "Raio X da Fatura",
     description: "Diagnóstico e economia nas faturas da empresa",
-    to: "/solucoes/raiox-da-fatura" as const,
+    href: "/raio-x-fatura.html",
   },
 ];
 
@@ -52,21 +56,37 @@ export function SiteHeader() {
 
             <div className="invisible absolute left-1/2 top-full w-72 -translate-x-1/2 pt-3 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
               <div className="rounded-2xl border border-border bg-surface p-2 shadow-[var(--shadow-soft)]">
-                {solutions.map((solution) => (
-                  <Link
-                    key={solution.to}
-                    to={solution.to}
-                    className="block rounded-xl px-4 py-3 transition-colors hover:bg-accent"
-                    activeProps={{ className: "bg-accent" }}
-                  >
-                    <span className="block font-display text-sm font-semibold text-foreground">
-                      {solution.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {solution.description}
-                    </span>
-                  </Link>
-                ))}
+                {solutions.map((solution) => {
+                  const content = (
+                    <>
+                      <span className="block font-display text-sm font-semibold text-foreground">
+                        {solution.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {solution.description}
+                      </span>
+                    </>
+                  );
+                  const className =
+                    "block rounded-xl px-4 py-3 transition-colors hover:bg-accent";
+                  if ("to" in solution) {
+                    return (
+                      <Link
+                        key={solution.to}
+                        to={solution.to}
+                        className={className}
+                        activeProps={{ className: "bg-accent" }}
+                      >
+                        {content}
+                      </Link>
+                    );
+                  }
+                  return (
+                    <a key={solution.href} href={solution.href} className={className}>
+                      {content}
+                    </a>
+                  );
+                })}
               </div>
             </div>
           </div>
