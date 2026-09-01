@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Raio-X da Fatura · C6 · Setembro/2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-soft: #121a30;
+    --card: #161f38;
+    --card-2: #1b2646;
+    --line: #243258;
+    --text: #eef2ff;
+    --muted: #9aa7c7;
+    --brand: #6ea8ff;
+    --brand-2: #8b7bff;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #fb7185;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1a2547 0%, transparent 60%),
+                radial-gradient(900px 500px at -10% 10%, #21183f 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
+  .mono { font-family: 'Roboto Mono', ui-monospace, monospace; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 28px;
+  }
+  .brand-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--brand); background: rgba(110,168,255,.10);
+    border: 1px solid rgba(110,168,255,.25); padding: 6px 12px; border-radius: 999px;
+  }
+  h1 { font-size: clamp(26px, 4vw, 40px); font-weight: 800; margin: 12px 0 4px; letter-spacing: -.02em; }
+  .subtitle { color: var(--muted); font-size: 15px; margin: 0; }
+  .ref-badge {
+    text-align: right; color: var(--muted); font-size: 13px;
+  }
+  .ref-badge strong { color: var(--text); display: block; font-size: 15px; }
+
+  .cards {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px;
+  }
+  .card {
+    background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 18px 16px; box-shadow: var(--shadow);
+  }
+  .card .label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .card .value { font-size: 26px; font-weight: 800; margin-top: 6px; letter-spacing: -.02em; }
+  .card .value.mono { font-size: 24px; }
+  .card .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card.accent { border-color: rgba(139,123,255,.4); background: linear-gradient(180deg, #21224a 0%, #2a2258 100%); }
+  .v-good { color: var(--good); } .v-warn { color: var(--warn); } .v-bad { color: var(--bad); } .v-brand { color: var(--brand); }
+
+  section { margin-bottom: 30px; }
+  .section-title { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow);
+  }
+
+  /* Projeção mês a mês */
+  .proj { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 10px; align-items: end; }
+  .proj .col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .bar-track { width: 100%; height: 200px; display: flex; align-items: flex-end; justify-content: center; }
+  .bar {
+    width: 70%; max-width: 46px; border-radius: 8px 8px 3px 3px;
+    background: linear-gradient(180deg, var(--brand) 0%, var(--brand-2) 100%);
+    transition: filter .15s ease; position: relative; min-height: 3px;
+  }
+  .bar:hover { filter: brightness(1.15); }
+  .bar.current { background: linear-gradient(180deg, #ffd27a 0%, #fbbf24 100%); box-shadow: 0 0 0 2px rgba(251,191,36,.25); }
+  .proj .m-label { font-size: 11px; color: var(--muted); font-weight: 600; }
+  .proj .m-val { font-size: 11.5px; font-weight: 700; }
+  .proj .m-val.current { color: var(--warn); }
+
+  /* Tabela */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; padding: 0 12px 12px; border-bottom: 1px solid var(--line);
+  }
+  th.num, td.num { text-align: right; }
+  tbody td { padding: 13px 12px; border-bottom: 1px solid rgba(36,50,88,.55); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(110,168,255,.05); }
+  .cat {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    background: rgba(110,168,255,.12); color: var(--brand); border: 1px solid rgba(110,168,255,.2);
+  }
+  .parc-pill { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .prog { height: 6px; border-radius: 999px; background: var(--line); margin-top: 5px; overflow: hidden; width: 90px; }
+  .prog > span { display: block; height: 100%; background: linear-gradient(90deg, var(--brand), var(--brand-2)); border-radius: 999px; }
+
+  .foot-note { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+  footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+
+  @media (max-width: 720px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .panel { padding: 16px 12px; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <span class="brand-tag">💳 Raio-X da Fatura</span>
+      <h1>Fatura C6 · Setembro/2026</h1>
+      <p class="subtitle">Visão geral do fechamento e projeção mês a mês das parcelas em aberto.</p>
+    </div>
+    <div class="ref-badge">
+      Vencimento
+      <strong>10/09/2026</strong>
+      Fechamento em 03/09/2026
+    </div>
+  </header>
+
+  <!-- ======= CARDS RESUMO ======= -->
+  <section class="cards">
+    <div class="card accent">
+      <div class="label">Total da fatura</div>
+      <div class="value mono" id="c-total">R$ 0,00</div>
+      <div class="hint">Vencimento 10/09</div>
+    </div>
+    <div class="card">
+      <div class="label">Compras à vista</div>
+      <div class="value mono v-good" id="c-avista">R$ 0,00</div>
+      <div class="hint">Não impactam próximos meses</div>
+    </div>
+    <div class="card">
+      <div class="label">Parcelas deste mês</div>
+      <div class="value mono v-warn" id="c-parc">R$ 0,00</div>
+      <div class="hint" id="c-parc-count">— compromissos ativos</div>
+    </div>
+    <div class="card">
+      <div class="label">Saldo parcelado em aberto</div>
+      <div class="value mono v-bad" id="c-aberto">R$ 0,00</div>
+      <div class="hint">A pagar após esta fatura</div>
+    </div>
+  </section>
+
+  <!-- ======= PROJEÇÃO MÊS A MÊS ======= -->
+  <section>
+    <p class="section-title">Projeção das parcelas — próximos 12 meses</p>
+    <div class="panel">
+      <div class="proj" id="proj"></div>
+      <p class="foot-note">
+        Cada barra soma as parcelas já comprometidas que cairão no mês. O mês atual (setembro/2026)
+        aparece destacado. Compras à vista não entram na projeção.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======= DETALHAMENTO ======= -->
+  <section>
+    <p class="section-title">Compras parceladas ativas</p>
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição</th>
+            <th>Categoria</th>
+            <th class="num">Parcela</th>
+            <th>Andamento</th>
+            <th class="num">Valor / mês</th>
+            <th class="num">Restante</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <p class="foot-note">
+        “Restante” = parcelas ainda a vencer × valor da parcela (inclui a deste mês).
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <span>Raio-X da Fatura · dados de referência da fatura C6 fechada em setembro/2026.</span>
+    <span class="mono" id="gerado"></span>
+  </footer>
+
+</div>
+
+<script>
+  /* =========================================================================
+     DADOS DA FATURA
+     Ajuste este bloco quando quiser plugar os valores reais da fatura.
+     - avista: compras à vista/débito automático do ciclo (não projetam).
+     - parceladas: cada item tem parcela atual (n) de total (de), e valor mensal.
+       A projeção assume 1 parcela por mês a partir de setembro/2026.
+     ========================================================================= */
+  const REF = { ano: 2026, mes: 8 /* 0-indexado: 8 = setembro */ };
+
+  const avista = [
+    { desc: "Supermercado / dia a dia", valor: 1240.55 },
+    { desc: "Combustível", valor: 410.00 },
+    { desc: "Assinaturas (streaming, apps)", valor: 189.70 },
+    { desc: "Restaurantes", valor: 356.30 },
+  ];
+
+  const parceladas = [
+    { desc: "Notebook Dell",          cat: "Eletrônicos", n: 3,  de: 10, mensal: 486.90 },
+    { desc: "Passagens aéreas (férias)", cat: "Viagem",   n: 2,  de: 6,  mensal: 733.33 },
+    { desc: "Geladeira Frost Free",   cat: "Casa",        n: 5,  de: 12, mensal: 291.58 },
+    { desc: "Curso de especialização", cat: "Educação",   n: 8,  de: 18, mensal: 349.00 },
+    { desc: "Pneus + revisão",        cat: "Carro",       n: 1,  de: 4,  mensal: 412.25 },
+    { desc: "Smartphone",             cat: "Eletrônicos", n: 6,  de: 10, mensal: 258.40 },
+    { desc: "Óculos de grau",         cat: "Saúde",       n: 2,  de: 3,  mensal: 233.00 },
+  ];
+
+  /* ============================ CÁLCULOS ============================ */
+  const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+  const totalAvista = avista.reduce((s, i) => s + i.valor, 0);
+  const totalParcMes = parceladas.reduce((s, i) => s + i.mensal, 0);
+  const totalFatura = totalAvista + totalParcMes;
+
+  // saldo em aberto após ESTA fatura (parcelas que ainda vão vencer, sem contar a deste mês)
+  const saldoAberto = parceladas.reduce((s, i) => s + i.mensal * (i.de - i.n), 0);
+
+  document.getElementById('c-total').textContent = brl(totalFatura);
+  document.getElementById('c-avista').textContent = brl(totalAvista);
+  document.getElementById('c-parc').textContent = brl(totalParcMes);
+  document.getElementById('c-parc-count').textContent = parceladas.length + ' compromissos ativos';
+  document.getElementById('c-aberto').textContent = brl(saldoAberto);
+
+  // Projeção: 12 meses a partir do mês de referência
+  const HORIZONTE = 12;
+  const proj = Array.from({ length: HORIZONTE }, (_, k) => {
+    const d = new Date(REF.ano, REF.mes + k, 1);
+    return { label: meses[d.getMonth()], ano: d.getFullYear(), total: 0 };
+  });
+  parceladas.forEach((item) => {
+    const restantes = item.de - item.n; // parcelas após a deste mês
+    for (let k = 0; k <= restantes && k < HORIZONTE; k++) {
+      proj[k].total += item.mensal;
+    }
+  });
+
+  const maxProj = Math.max(...proj.map(p => p.total), 1);
+  const projEl = document.getElementById('proj');
+  proj.forEach((p, i) => {
+    const h = Math.round((p.total / maxProj) * 190);
+    const isCur = i === 0;
+    const col = document.createElement('div');
+    col.className = 'col';
+    col.innerHTML = `
+      <div class="m-val ${isCur ? 'current' : ''}">${p.total > 0 ? brl(p.total).replace('R$ ','') : '—'}</div>
+      <div class="bar-track">
+        <div class="bar ${isCur ? 'current' : ''}" style="height:${Math.max(h,3)}px"
+             title="${p.label}/${p.ano}: ${brl(p.total)}"></div>
+      </div>
+      <div class="m-label">${p.label}${(i===0 || p.label==='jan') ? '/'+String(p.ano).slice(2) : ''}</div>
+    `;
+    projEl.appendChild(col);
+  });
+
+  // Tabela
+  const tbody = document.getElementById('tbody');
+  parceladas
+    .slice()
+    .sort((a, b) => (b.mensal * (b.de - b.n)) - (a.mensal * (a.de - a.n)))
+    .forEach((item) => {
+      const restante = item.mensal * (item.de - item.n + 1); // inclui a deste mês
+      const pct = Math.round((item.n / item.de) * 100);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${item.desc}</td>
+        <td><span class="cat">${item.cat}</span></td>
+        <td class="num"><span class="parc-pill">${item.n}/${item.de}</span></td>
+        <td>
+          <div class="prog"><span style="width:${pct}%"></span></div>
+        </td>
+        <td class="num mono">${brl(item.mensal)}</td>
+        <td class="num mono">${brl(restante)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  document.getElementById('gerado').textContent =
+    'Atualizado em ' + new Date().toLocaleDateString('pt-BR');
+</script>
+</body>
+</html>
