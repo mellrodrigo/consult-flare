@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowRouteImport } from './routes/workflow'
+import { Route as SolucoesRaioxDaFaturaRouteImport } from './routes/solucoes.raiox-da-fatura'
 import { Route as SolucoesWorkflowProfissionaisRouteImport } from './routes/solucoes.workflow-profissionais'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const WorkflowRoute = WorkflowRouteImport.update({
   path: '/workflow',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SolucoesRaioxDaFaturaRoute = SolucoesRaioxDaFaturaRouteImport.update({
+  id: '/solucoes/raiox-da-fatura',
+  path: '/solucoes/raiox-da-fatura',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SolucoesWorkflowProfissionaisRoute =
   SolucoesWorkflowProfissionaisRouteImport.update({
     id: '/solucoes/workflow-profissionais',
@@ -33,30 +39,47 @@ const SolucoesWorkflowProfissionaisRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/workflow': typeof WorkflowRoute
+  '/solucoes/raiox-da-fatura': typeof SolucoesRaioxDaFaturaRoute
   '/solucoes/workflow-profissionais': typeof SolucoesWorkflowProfissionaisRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/workflow': typeof WorkflowRoute
+  '/solucoes/raiox-da-fatura': typeof SolucoesRaioxDaFaturaRoute
   '/solucoes/workflow-profissionais': typeof SolucoesWorkflowProfissionaisRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/workflow': typeof WorkflowRoute
+  '/solucoes/raiox-da-fatura': typeof SolucoesRaioxDaFaturaRoute
   '/solucoes/workflow-profissionais': typeof SolucoesWorkflowProfissionaisRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/workflow' | '/solucoes/workflow-profissionais'
+  fullPaths:
+    | '/'
+    | '/workflow'
+    | '/solucoes/raiox-da-fatura'
+    | '/solucoes/workflow-profissionais'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/workflow' | '/solucoes/workflow-profissionais'
-  id: '__root__' | '/' | '/workflow' | '/solucoes/workflow-profissionais'
+  to:
+    | '/'
+    | '/workflow'
+    | '/solucoes/raiox-da-fatura'
+    | '/solucoes/workflow-profissionais'
+  id:
+    | '__root__'
+    | '/'
+    | '/workflow'
+    | '/solucoes/raiox-da-fatura'
+    | '/solucoes/workflow-profissionais'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   WorkflowRoute: typeof WorkflowRoute
+  SolucoesRaioxDaFaturaRoute: typeof SolucoesRaioxDaFaturaRoute
   SolucoesWorkflowProfissionaisRoute: typeof SolucoesWorkflowProfissionaisRoute
 }
 
@@ -76,6 +99,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/solucoes/raiox-da-fatura': {
+      id: '/solucoes/raiox-da-fatura'
+      path: '/solucoes/raiox-da-fatura'
+      fullPath: '/solucoes/raiox-da-fatura'
+      preLoaderRoute: typeof SolucoesRaioxDaFaturaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/solucoes/workflow-profissionais': {
       id: '/solucoes/workflow-profissionais'
       path: '/solucoes/workflow-profissionais'
@@ -89,6 +119,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   WorkflowRoute: WorkflowRoute,
+  SolucoesRaioxDaFaturaRoute: SolucoesRaioxDaFaturaRoute,
   SolucoesWorkflowProfissionaisRoute: SolucoesWorkflowProfissionaisRoute,
 }
 export const routeTree = rootRouteImport
