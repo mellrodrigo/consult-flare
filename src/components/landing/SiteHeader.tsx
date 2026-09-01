@@ -18,7 +18,7 @@ const solutions = [
   {
     label: "Raio X da Fatura",
     description: "Diagnóstico e economia nas faturas da empresa",
-    to: "/solucoes/raiox-da-fatura" as const,
+    href: "/raio-x-fatura.html",
   },
 ];
 
