@@ -69,19 +69,22 @@ export function SiteHeader() {
                   );
                   const className =
                     "block rounded-xl px-4 py-3 transition-colors hover:bg-accent";
-                  return solution.href ? (
+                  if ("to" in solution) {
+                    return (
+                      <Link
+                        key={solution.to}
+                        to={solution.to}
+                        className={className}
+                        activeProps={{ className: "bg-accent" }}
+                      >
+                        {content}
+                      </Link>
+                    );
+                  }
+                  return (
                     <a key={solution.href} href={solution.href} className={className}>
                       {content}
                     </a>
-                  ) : (
-                    <Link
-                      key={solution.to}
-                      to={solution.to}
-                      className={className}
-                      activeProps={{ className: "bg-accent" }}
-                    >
-                      {content}
-                    </Link>
                   );
                 })}
               </div>
