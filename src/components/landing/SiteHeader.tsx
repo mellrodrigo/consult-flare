@@ -69,7 +69,7 @@ export function SiteHeader() {
                   );
                   const className =
                     "block rounded-xl px-4 py-3 transition-colors hover:bg-accent";
-                  return "href" in solution && solution.href ? (
+                  return solution.href ? (
                     <a key={solution.href} href={solution.href} className={className}>
                       {content}
                     </a>
