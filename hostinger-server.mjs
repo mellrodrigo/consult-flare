@@ -13,6 +13,7 @@
 // A ordem importa: se o estático ou o SSR viessem antes da API, /api/* cairia na
 // página 404 do frontend e o login responderia HTML em vez de JSON.
 import { existsSync } from "node:fs";
+import http from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -88,31 +89,58 @@ async function mountSsr() {
     return;
   }
   // Preset node-server: já subiu em INTERNAL_PORT no import acima.
-  app.use(async (req, res, next) => {
-    try {
-      const target = `http://127.0.0.1:${INTERNAL_PORT}${req.originalUrl}`;
-      const headers = { ...req.headers };
-      delete headers.host;
-      delete headers.connection;
-      const hasBody = !["GET", "HEAD"].includes(req.method);
-      const upstream = await fetch(target, {
+  // Proxy com node:http nativo (o fetch/undici falha em alguns runtimes da
+  // Hostinger, gerando "TypeError: fetch failed" e erro 500).
+  await waitForInternalSsr();
+  app.use((req, res, next) => {
+    const upstream = http.request(
+      {
+        host: "127.0.0.1",
+        port: INTERNAL_PORT,
+        path: req.originalUrl,
         method: req.method,
-        headers,
-        body: hasBody ? req : undefined,
-        duplex: hasBody ? "half" : undefined,
-        redirect: "manual",
-      });
-      res.status(upstream.status);
-      upstream.headers.forEach((value, key) => {
-        if (!["content-encoding", "content-length", "transfer-encoding"].includes(key)) {
-          res.setHeader(key, value);
+        headers: { ...req.headers, host: `127.0.0.1:${INTERNAL_PORT}` },
+      },
+      (upRes) => {
+        res.status(upRes.statusCode ?? 502);
+        for (const [key, value] of Object.entries(upRes.headers)) {
+          if (
+            value !== undefined &&
+            !["content-encoding", "content-length", "transfer-encoding", "connection"].includes(key)
+          ) {
+            res.setHeader(key, value);
+          }
         }
-      });
-      res.end(Buffer.from(await upstream.arrayBuffer()));
-    } catch (err) {
-      next(err);
-    }
+        upRes.pipe(res);
+      },
+    );
+    upstream.on("error", (err) => next(err));
+    req.pipe(upstream);
   });
+}
+
+// Aguarda o servidor interno do preset node-server abrir a porta antes de
+// liberar o proxy (evita 500 nas primeiras requisições).
+async function waitForInternalSsr() {
+  for (let i = 0; i < 60; i++) {
+    const ok = await new Promise((resolveOk) => {
+      const probe = http.get(
+        { host: "127.0.0.1", port: INTERNAL_PORT, path: "/", timeout: 1000 },
+        (res) => {
+          res.resume();
+          resolveOk(true);
+        },
+      );
+      probe.on("error", () => resolveOk(false));
+      probe.on("timeout", () => {
+        probe.destroy();
+        resolveOk(false);
+      });
+    });
+    if (ok) return;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  console.error(`SSR interno não respondeu na porta ${INTERNAL_PORT}.`);
 }
 
 // Porta interna do SSR quando o build usa o preset node-server.
