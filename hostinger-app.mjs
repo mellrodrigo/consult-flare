@@ -1,4 +1,4 @@
-// Entry point do site rgmtech.com.br para hospedagem COM Node.js
+// App do site rgmtech.com.br (carregado por hostinger-server.mjs) para hospedagem COM Node.js
 // (VPS ou plano com "Node.js app"). A hospedagem compartilhada da Hostinger só
 // roda PHP e não usa este arquivo — lá o caminho é `npm run build:hostinger`.
 //
