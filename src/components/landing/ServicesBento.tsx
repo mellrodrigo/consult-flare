@@ -5,10 +5,10 @@ export function ServicesBento() {
     <section id="servicos" className="mx-auto max-w-6xl px-6 py-20 md:py-28">
       <div className="max-w-2xl">
         <h2 className="font-display text-3xl font-bold md:text-4xl">
-          Serviços que resolvem gargalos reais
+          Da ideia à operação.
         </h2>
         <p className="mt-4 text-muted-foreground">
-          Nada de projeto genérico. Cada frente nasce de um diagnóstico da sua operação.
+          Consultoria, desenvolvimento e evolução contínua. Cada projeto começa pelas necessidades da sua empresa.
         </p>
       </div>
 
