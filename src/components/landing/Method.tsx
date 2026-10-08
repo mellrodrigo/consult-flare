@@ -2,17 +2,17 @@ const steps = [
   {
     number: "01",
     title: "Diagnóstico",
-    text: "Mapeamos processos, sistemas e gargalos em até duas semanas.",
+    text: "Entendemos sua rotina, os sistemas atuais e o que precisa mudar.",
   },
   {
     number: "02",
     title: "Desenho da solução",
-    text: "Escopo, arquitetura e cronograma com custo fechado por etapa.",
+    text: "Definimos funcionalidades, integrações, prioridades e investimento.",
   },
   {
     number: "03",
     title: "Implantação",
-    text: "Entregas quinzenais, com validação do time que usa o sistema.",
+    text: "Desenvolvemos e validamos as entregas com as pessoas que vão usar.",
   },
   {
     number: "04",
@@ -27,15 +27,14 @@ export function Method() {
       <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <h2 className="max-w-md font-display text-3xl font-bold md:text-4xl">
-            Um método previsível, do primeiro contato à operação
+            Clareza em cada etapa.
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Você sabe exatamente o que será entregue, quando e por quanto — antes de
-            assinar.
+            Do primeiro diagnóstico à evolução do sistema, construímos o caminho junto com você.
           </p>
         </div>
 
-        <ol className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-4">
+        <ol className="mt-14 grid gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-4">
           {steps.map((step) => (
             <li key={step.number} className="bg-background p-7">
               <span className="font-display text-sm font-semibold text-gold">
