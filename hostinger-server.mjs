@@ -13,6 +13,7 @@
 // A ordem importa: se o estático ou o SSR viessem antes da API, /api/* cairia na
 // página 404 do frontend e o login responderia HTML em vez de JSON.
 import { existsSync } from "node:fs";
+import http from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
