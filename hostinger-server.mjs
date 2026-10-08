@@ -7,13 +7,12 @@
 // Um processo Node serve tudo na mesma porta:
 //   1. /api/*  → API do Workflow (Express + MySQL), registrada PRIMEIRO;
 //   2. assets  → arquivos estáticos gerados em .output/public;
-//   3. resto   → SSR do TanStack Start (Nitro, preset `node-middleware`;
-//                o preset `node-server` também é aceito, via proxy interno).
+//   3. resto   → SSR do TanStack Start, carregado no mesmo processo.
 //
 // A ordem importa: se o estático ou o SSR viessem antes da API, /api/* cairia na
 // página 404 do frontend e o login responderia HTML em vez de JSON.
 import { existsSync } from "node:fs";
-import http from "node:http";
+import { Readable } from "node:stream";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -27,7 +26,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 loadEnv(here);
 
-const PORT = Number(process.env.PORT ?? 3000);
+// PORT pode ser número ou socket (Passenger); só converte quando for numérico.
+const rawPort = process.env.PORT ?? "3000";
+const PORT = /^\d+$/.test(rawPort) ? Number(rawPort) : rawPort;
 const HOST = process.env.HOST ?? "0.0.0.0";
 
 const outputDir = resolve(here, ".output");
@@ -70,90 +71,87 @@ if (existsSync(publicDir)) {
   );
 }
 
-// 3) SSR do TanStack Start.
-// Aceita os dois presets do Nitro:
-//   - `node-middleware`: exporta `middleware`, um handler Node comum (ideal);
-//   - `node-server`: sobe o próprio servidor HTTP ao ser importado. Nesse caso
-//     importamos com uma porta interna (via NITRO_PORT) e fazemos proxy — sem
-//     isso o import brigaria pela mesma porta do Express e o app cairia (503).
-async function mountSsr() {
-  const mod = await import(pathToFileURL(ssrEntry).href).catch((err) => {
+// 3) SSR do TanStack Start — sempre no MESMO processo, sem porta interna.
+// A Hostinger exige que listen() aconteça em até 3 segundos, então a porta abre
+// primeiro e o SSR é carregado logo em seguida. Formatos aceitos do build:
+//   - `middleware` (preset node-middleware, gerado por `npm run build:server`);
+//   - `default.fetch` (build padrão `npm run build`, handler fetch Web);
+//   - função default / `handler`.
+let ssrHandler = null;
+let ssrError = null;
+let resolveSsrReady;
+const ssrReady = new Promise((r) => (resolveSsrReady = r));
+
+function fetchToNode(fetchFn) {
+  return async (req, res, next) => {
+    try {
+      const proto = req.headers["x-forwarded-proto"]?.split(",")[0] || (req.secure ? "https" : "http");
+      const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost";
+      const headers = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (value === undefined) continue;
+        if (Array.isArray(value)) for (const v of value) headers.append(key, v);
+        else headers.set(key, String(value));
+      }
+      const hasBody = !["GET", "HEAD"].includes(req.method);
+      const request = new Request(`${proto}://${host}${req.originalUrl}`, {
+        method: req.method,
+        headers,
+        body: hasBody ? Readable.toWeb(req) : undefined,
+        duplex: hasBody ? "half" : undefined,
+      });
+      const ctx = { waitUntil: (p) => Promise.resolve(p).catch(() => {}), passThroughOnException() {} };
+      const response = await fetchFn(request, process.env, ctx);
+      if (!response) return next();
+      res.status(response.status);
+      const cookies = response.headers.getSetCookie?.() ?? [];
+      response.headers.forEach((value, key) => {
+        if (key === "set-cookie" || key === "content-length" || key === "content-encoding") return;
+        res.setHeader(key, value);
+      });
+      if (cookies.length) res.setHeader("set-cookie", cookies);
+      if (!response.body || req.method === "HEAD") return res.end();
+      Readable.fromWeb(response.body).on("error", next).pipe(res);
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+async function loadSsr() {
+  try {
+    const mod = await import(pathToFileURL(ssrEntry).href);
+    const def = mod.default;
+    if (typeof mod.middleware === "function") return mod.middleware;
+    if (def && typeof def.fetch === "function") return fetchToNode(def.fetch.bind(def));
+    if (typeof mod.handler === "function") return mod.handler;
+    if (typeof def === "function") return def;
+    throw new Error("Formato do build SSR não reconhecido. Rode 'npm run build:server'.");
+  } catch (err) {
     console.error("Falha ao carregar o SSR:", err);
+    ssrError = err;
     return null;
-  });
-  const direct =
-    mod &&
-    (mod.middleware ?? mod.handler ?? (typeof mod.default === "function" ? mod.default : null));
-  if (typeof direct === "function") {
-    app.use(direct);
+  }
+}
+
+app.use(async (req, res, next) => {
+  if (!ssrHandler && !ssrError) await ssrReady;
+  if (!ssrHandler) {
+    res.status(503).type("text/plain").send("Site iniciando ou com erro no build. Veja os logs.");
     return;
   }
-  // Preset node-server: já subiu em INTERNAL_PORT no import acima.
-  // Proxy com node:http nativo (o fetch/undici falha em alguns runtimes da
-  // Hostinger, gerando "TypeError: fetch failed" e erro 500).
-  await waitForInternalSsr();
-  app.use((req, res, next) => {
-    const upstream = http.request(
-      {
-        host: "127.0.0.1",
-        port: INTERNAL_PORT,
-        path: req.originalUrl,
-        method: req.method,
-        headers: { ...req.headers, host: `127.0.0.1:${INTERNAL_PORT}` },
-      },
-      (upRes) => {
-        res.status(upRes.statusCode ?? 502);
-        for (const [key, value] of Object.entries(upRes.headers)) {
-          if (
-            value !== undefined &&
-            !["content-encoding", "content-length", "transfer-encoding", "connection"].includes(key)
-          ) {
-            res.setHeader(key, value);
-          }
-        }
-        upRes.pipe(res);
-      },
-    );
-    upstream.on("error", (err) => next(err));
-    req.pipe(upstream);
-  });
-}
+  ssrHandler(req, res, next);
+});
 
-// Aguarda o servidor interno do preset node-server abrir a porta antes de
-// liberar o proxy (evita 500 nas primeiras requisições).
-async function waitForInternalSsr() {
-  for (let i = 0; i < 60; i++) {
-    const ok = await new Promise((resolveOk) => {
-      const probe = http.get(
-        { host: "127.0.0.1", port: INTERNAL_PORT, path: "/", timeout: 1000 },
-        (res) => {
-          res.resume();
-          resolveOk(true);
-        },
-      );
-      probe.on("error", () => resolveOk(false));
-      probe.on("timeout", () => {
-        probe.destroy();
-        resolveOk(false);
-      });
-    });
-    if (ok) return;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  console.error(`SSR interno não respondeu na porta ${INTERNAL_PORT}.`);
-}
+// Abre a porta IMEDIATAMENTE (antes do SSR e do banco).
+const onListen = () => console.log(`RGMtech rodando em ${typeof PORT === "number" ? `http://${HOST}:${PORT}` : PORT}`);
+if (typeof PORT === "number") app.listen(PORT, HOST, onListen);
+else app.listen(PORT, onListen);
 
-// Porta interna do SSR quando o build usa o preset node-server.
-const INTERNAL_PORT = Number(process.env.SSR_INTERNAL_PORT ?? PORT + 1);
-process.env.NITRO_PORT = String(INTERNAL_PORT);
-process.env.NITRO_HOST = "127.0.0.1";
-
-await mountSsr();
-
-// Sobe o servidor ANTES de qualquer acesso ao banco: se o MySQL estiver lento
-// ou fora do ar, a porta precisa abrir mesmo assim (senão a Hostinger dá 503).
-app.listen(PORT, HOST, () => {
-  console.log(`RGMtech rodando em http://${HOST}:${PORT}`);
+loadSsr().then((handler) => {
+  ssrHandler = handler;
+  if (handler) console.log("SSR carregado.");
+  resolveSsrReady();
 });
 
 // Primeiro acesso via ADMIN_USERNAME/ADMIN_PASSWORD (só quando não há usuários).
