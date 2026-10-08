@@ -144,9 +144,9 @@ app.use(async (req, res, next) => {
 });
 
 // Abre a porta IMEDIATAMENTE (antes do SSR e do banco).
-app.listen(PORT, HOST, () => {
-  console.log(`RGMtech rodando em http://${HOST}:${PORT}`);
-});
+const onListen = () => console.log(`RGMtech rodando em ${typeof PORT === "number" ? `http://${HOST}:${PORT}` : PORT}`);
+if (typeof PORT === "number") app.listen(PORT, HOST, onListen);
+else app.listen(PORT, onListen);
 
 loadSsr().then((handler) => {
   ssrHandler = handler;
