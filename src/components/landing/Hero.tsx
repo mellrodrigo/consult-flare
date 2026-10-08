@@ -1,4 +1,6 @@
 import heroImage from "@/assets/hero-abstract.jpg";
+import { ArrowRight, ArrowDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function Hero() {
   return (
@@ -12,35 +14,29 @@ export function Hero() {
       />
       <div className="grid-veil absolute inset-0" />
 
-      <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 md:pb-28 md:pt-32">
-        <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-surface/60 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-gold">
-          Consultoria em tecnologia
+      <div className="relative mx-auto max-w-6xl px-6 pb-14 pt-16 md:pb-20 md:pt-20">
+        <span className="text-xs font-semibold uppercase text-gold">
+          Consultoria · Desenvolvimento · Automação
         </span>
 
-        <h1 className="mt-8 max-w-3xl font-display text-4xl font-bold leading-[1.05] md:text-6xl">
-          Tecnologia que sustenta a{" "}
-          <span className="text-gradient-gold">operação do seu negócio</span>
+        <h1 className="mt-7 max-w-3xl font-display text-5xl font-bold leading-[1.05] md:text-7xl">
+          RGM<span className="text-gradient-gold">tech</span>
         </h1>
-
+        <p className="mt-5 max-w-2xl font-display text-2xl font-medium leading-tight md:text-4xl">Tecnologia feita para o seu negócio. Não o contrário.</p>
         <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
-          A RGMtech desenha, implanta e opera sistemas sob medida — do diagnóstico à
-          automação — para empresas que precisam crescer sem perder controle.
+          Desenvolvemos sistemas sob medida e simplificamos operações. De consultorias
+          a salões de beleza, conectamos pessoas, processos e dados para o seu negócio avançar.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-4">
-          <a
+          <Button asChild variant="gold" size="lg"><a
             href="#contato"
-            className="rounded-full bg-gold px-6 py-3 text-sm font-semibold text-gold-foreground shadow-[var(--shadow-gold)] transition-transform hover:-translate-y-0.5"
           >
-            Agendar diagnóstico
-          </a>
-          <a
-            href="#servicos"
-            className="rounded-full border border-border bg-surface/70 px-6 py-3 text-sm font-medium text-foreground transition-colors hover:border-gold/40"
-          >
-            Ver serviços
-          </a>
+            Vamos conversar <ArrowRight />
+          </a></Button>
+          <Button asChild variant="outline" size="lg"><a href="#solucoes">Explorar soluções <ArrowDown /></a></Button>
         </div>
+        <div className="mt-14 flex flex-wrap gap-x-8 gap-y-3 border-t border-border/60 pt-5 text-xs text-muted-foreground"><span>Sistemas sob medida</span><span>Gestão para salões de beleza</span><span>Integrações e automação</span></div>
       </div>
     </section>
   );
